@@ -16,7 +16,6 @@ const COLUMNS = [
   "تعداد صدور ثالث بالای 30 دقیقه",
   "تعداد سفارشات لغو شده",
   "مجموع صدور ثالث",
-  "فاصله تا پله بعدی حقوق ثابت",
   "حقوق ثابت",
   "حقوق متغیر",
   "حقوق قبل از جریمه خطای صدور",
@@ -24,15 +23,6 @@ const COLUMNS = [
   "نرخ خطای صدور",
   "حقوق بعد از جریمه خطای صدور"
 ];
-
-// متن‌های طنز فاصله تا پله بعدی
-const DISTANCE_HUMOR = {
-  very_close: ["بزن!", "نزدیکه", "تموم‌شو", "فشار", "نفس آخر"],
-  close: ["رکاب بزن", "ول نکن", "نزدیکه", "ادامه", "بترکون"],
-  medium: ["بزن قوی", "بیشتر", "بیدار شو", "تلاش کن", "صاف‌تر"],
-  far: ["جدی شو", "فشار بیشتر", "راه طولانی", "ادامه بده", "با برنامه"],
-  very_far: ["کلی راه", "سخته", "معجزه", "دوره خیلی", "چالش"]
-};
 
 // ====================== راه‌اندازی شیت‌ها ======================
 function setupSheets() {
@@ -54,6 +44,13 @@ function setupSheets() {
   if (!sheet) {
     sheet = ss.insertSheet(RECORDS_SHEET);
     sheet.appendRow([...COLUMNS, "تاریخ ثبت"]);
+  } else {
+    // اگر هدر قدیمی است، آن را به‌روز می‌کنیم (فقط اگر خالی باشد)
+    const header = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+    if (header[0] !== "شیفت" || header.length < 16) {
+      sheet.clear();
+      sheet.appendRow([...COLUMNS, "تاریخ ثبت"]);
+    }
   }
 
   // --- Config_FixedSalary ---
@@ -61,13 +58,11 @@ function setupSheets() {
   if (!sheet) {
     sheet = ss.insertSheet(FIXED_SALARY_SHEET);
     sheet.appendRow(["شیفت", "از", "تا", "مبلغ حقوق ثابت"]);
-    // شیفت ۱ (روز)
     sheet.appendRow([1, 0, 199, 3000000]);
     sheet.appendRow([1, 200, 349, 5000000]);
     sheet.appendRow([1, 350, 499, 8000000]);
     sheet.appendRow([1, 500, 699, 12000000]);
     sheet.appendRow([1, 700, 999999, 15000000]);
-    // شیفت ۲ (شب)
     sheet.appendRow([2, 0, 199, 3500000]);
     sheet.appendRow([2, 200, 349, 6000000]);
     sheet.appendRow([2, 350, 499, 9500000]);
@@ -94,10 +89,10 @@ function setupSheets() {
   if (!sheet) {
     sheet = ss.insertSheet(ERROR_PENALTIES_SHEET);
     sheet.appendRow(["حداکثر نرخ خطا (اعشاری)", "درصد جریمه"]);
-    sheet.appendRow([0.01, 0.00]);   // ≤ ۱٪
-    sheet.appendRow([0.02, 0.10]);   // ≤ ۲٪
-    sheet.appendRow([0.03, 0.15]);   // ≤ ۳٪
-    sheet.appendRow([999, 0.20]);    // > ۳٪
+    sheet.appendRow([0.01, 0.00]);
+    sheet.appendRow([0.02, 0.10]);
+    sheet.appendRow([0.03, 0.15]);
+    sheet.appendRow([999, 0.20]);
   }
 }
 
@@ -116,7 +111,6 @@ function getFixedSalaryRules() {
       rules[shift].push({ low, high, amount });
     }
   }
-  // مرتب‌سازی بر اساس low
   rules[1].sort((a, b) => a.low - b.low);
   rules[2].sort((a, b) => a.low - b.low);
   return rules;
@@ -164,35 +158,6 @@ function calculateFixedSalary(shift, totalIssuance, rules) {
   return 0;
 }
 
-function calculateDistanceToNext(shift, totalIssuance, rules) {
-  const shiftRules = rules[shift] || [];
-  for (let i = 0; i < shiftRules.length; i++) {
-    const r = shiftRules[i];
-    if (totalIssuance >= r.low && totalIssuance <= r.high) {
-      if (i + 1 < shiftRules.length) {
-        return Math.max(0, shiftRules[i + 1].low - totalIssuance);
-      }
-      return 0; // بالاترین پله
-    }
-  }
-  return 0;
-}
-
-function getHumorText(distance) {
-  if (distance === 0) return "بالاترین حد 🚀";
-
-  let category;
-  if (distance <= 10) category = "very_close";
-  else if (distance <= 30) category = "close";
-  else if (distance <= 70) category = "medium";
-  else if (distance <= 150) category = "far";
-  else category = "very_far";
-
-  const options = DISTANCE_HUMOR[category];
-  const humor = options[Math.floor(Math.random() * options.length)];
-  return `${humor} ➔ ${distance}`;
-}
-
 function calculateVariableSalary(primary, secondary, under15, b15_20, b20_30, over30, canceled, rates) {
   return (
     Number(primary) * (rates.initial_third_party || 0) +
@@ -207,9 +172,9 @@ function calculateVariableSalary(primary, secondary, under15, b15_20, b20_30, ov
 
 function applyErrorPenalty(salaryBefore, errorRate, penalties) {
   let rate = Number(errorRate);
-  if (rate > 1) rate = rate / 100; // اگر به صورت درصد وارد شده باشد
+  if (rate > 1) rate = rate / 100;
 
-  let penaltyPct = 0.20; // پیش‌فرض بالاترین
+  let penaltyPct = 0.20;
   for (const p of penalties) {
     if (rate <= p.threshold) {
       penaltyPct = p.penalty;
@@ -234,7 +199,7 @@ function getExperts() {
   for (let i = 1; i < data.length; i++) {
     if (data[i][0]) {
       list.push({
-        name: data[i][0],
+        name: String(data[i][0]),
         shift: Number(data[i][1]) || 1
       });
     }
@@ -242,14 +207,27 @@ function getExperts() {
   return list;
 }
 
-function getRecords(limit = 100) {
+function getRecords(limit) {
+  limit = limit || 200;
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(RECORDS_SHEET);
-  const data = sheet.getDataRange().getValues();
-  if (data.length <= 1) return [];
+  const lastRow = sheet.getLastRow();
+  
+  if (lastRow <= 1) return [];
 
-  // آخرین رکوردها (جدیدترین اول)
-  const records = data.slice(1).reverse().slice(0, limit);
-  return records;
+  const data = sheet.getRange(2, 1, lastRow - 1, 17).getValues(); // ۱۶ ستون داده + تاریخ
+  
+  // جدیدترین‌ها اول
+  const records = data.reverse().slice(0, limit);
+  
+  // تبدیل تاریخ به رشته خوانا و اطمینان از عدد بودن مقادیر
+  return records.map(row => {
+    return row.map((cell, idx) => {
+      if (idx === 16 && cell instanceof Date) {
+        return Utilities.formatDate(cell, Session.getScriptTimeZone(), "yyyy/MM/dd HH:mm");
+      }
+      return cell;
+    });
+  });
 }
 
 function submitRecord(formData) {
@@ -268,11 +246,8 @@ function submitRecord(formData) {
     const errors = Number(formData.errors) || 0;
     const shift = Number(formData.shift) || 1;
 
-    // محاسبات
     const totalIssuance = calculateFullIssuance(primary, secondary, under15, b15_20, b20_30, over30);
     const fixedSalary = calculateFixedSalary(shift, totalIssuance, rules);
-    const distance = calculateDistanceToNext(shift, totalIssuance, rules);
-    const distanceText = getHumorText(distance);
     const variableSalary = calculateVariableSalary(primary, secondary, under15, b15_20, b20_30, over30, canceled, rates);
     const salaryBefore = fixedSalary + variableSalary;
     const errorRate = totalIssuance > 0 ? (errors / totalIssuance) : 0;
@@ -289,12 +264,11 @@ function submitRecord(formData) {
       over30,
       canceled,
       totalIssuance,
-      distanceText,
       fixedSalary,
       variableSalary,
       salaryBefore,
       errors,
-      Number(errorRate.toFixed(4)), // ذخیره به صورت اعشاری
+      Number(errorRate.toFixed(4)),
       salaryAfter,
       new Date()
     ];
