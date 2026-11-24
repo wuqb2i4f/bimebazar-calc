@@ -4,193 +4,306 @@
   <base target="_top">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ثبت عملکرد کارشناس</title>
+  <title>سیستم حقوق کارشناسان ثالث</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       font-family: 'Tahoma', 'Segoe UI', sans-serif;
       background: #f0f2f5;
       direction: rtl;
-      padding: 20px;
-      color: #333;
+      padding: 16px;
+      color: #222;
+      font-size: 14px;
     }
     .container {
-      max-width: 720px;
+      max-width: 1400px;
       margin: 0 auto;
-      background: white;
-      border-radius: 12px;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.08);
-      overflow: hidden;
     }
     .header {
       background: linear-gradient(135deg, #1a73e8, #0d47a1);
       color: white;
-      padding: 24px;
+      padding: 20px 24px;
+      border-radius: 12px;
+      margin-bottom: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .header h1 { font-size: 1.4rem; }
+    .btn {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-family: inherit;
+    }
+    .btn-primary {
+      background: #fff;
+      color: #1a73e8;
+    }
+    .btn-primary:hover { background: #e8f0fe; }
+    .btn-success {
+      background: #1a73e8;
+      color: white;
+      width: 100%;
+      padding: 13px;
+      margin-top: 10px;
+    }
+    .btn-success:hover { background: #1557b0; }
+    .btn-success:disabled { background: #90caf9; cursor: not-allowed; }
+    .btn-secondary {
+      background: #e0e0e0;
+      color: #333;
+    }
+    .btn-secondary:hover { background: #d0d0d0; }
+
+    /* جدول */
+    .table-wrapper {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+      overflow: auto;
+      max-height: 75vh;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 1400px;
+    }
+    th, td {
+      padding: 10px 12px;
       text-align: center;
+      border-bottom: 1px solid #eee;
+      white-space: nowrap;
     }
-    .header h1 { font-size: 1.5rem; margin-bottom: 4px; }
-    .header p { opacity: 0.9; font-size: 0.9rem; }
-    .form-body { padding: 28px; }
-    .form-group {
-      margin-bottom: 18px;
+    th {
+      background: #f8f9fa;
+      font-weight: 700;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      font-size: 0.82rem;
+      color: #444;
     }
+    tr:hover td { background: #f5f9ff; }
+    .number { direction: ltr; text-align: center; }
+    .salary { font-weight: 600; color: #0d47a1; }
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: #888;
+    }
+
+    /* مودال فرم */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.45);
+      z-index: 1000;
+      justify-content: center;
+      align-items: flex-start;
+      padding: 30px 16px;
+      overflow-y: auto;
+    }
+    .modal-overlay.active { display: flex; }
+    .modal {
+      background: white;
+      border-radius: 14px;
+      width: 100%;
+      max-width: 680px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+      animation: slideIn 0.25s ease;
+    }
+    @keyframes slideIn {
+      from { transform: translateY(-20px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+    .modal-header {
+      padding: 18px 22px;
+      border-bottom: 1px solid #eee;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .modal-header h2 { font-size: 1.15rem; }
+    .close-btn {
+      background: none;
+      border: none;
+      font-size: 1.5rem;
+      cursor: pointer;
+      color: #666;
+      line-height: 1;
+    }
+    .modal-body { padding: 22px; }
+    .form-group { margin-bottom: 16px; }
     label {
       display: block;
-      margin-bottom: 6px;
+      margin-bottom: 5px;
       font-weight: 600;
-      font-size: 0.95rem;
+      font-size: 0.9rem;
       color: #444;
     }
     select, input[type="number"] {
       width: 100%;
-      padding: 12px 14px;
+      padding: 11px 13px;
       border: 1px solid #ddd;
       border-radius: 8px;
-      font-size: 1rem;
+      font-size: 0.95rem;
       font-family: inherit;
-      transition: border-color 0.2s;
     }
     select:focus, input:focus {
       outline: none;
       border-color: #1a73e8;
-      box-shadow: 0 0 0 3px rgba(26,115,232,0.15);
+      box-shadow: 0 0 0 3px rgba(26,115,232,0.12);
     }
     .grid-2 {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 16px;
+      gap: 14px;
     }
-    @media (max-width: 560px) {
+    @media (max-width: 520px) {
       .grid-2 { grid-template-columns: 1fr; }
     }
-    .btn {
-      display: inline-block;
-      width: 100%;
-      padding: 14px;
-      background: #1a73e8;
-      color: white;
-      border: none;
-      border-radius: 8px;
-      font-size: 1.05rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: background 0.2s;
-      margin-top: 10px;
-    }
-    .btn:hover { background: #1557b0; }
-    .btn:disabled {
-      background: #90caf9;
-      cursor: not-allowed;
-    }
-    .message {
-      margin-top: 16px;
-      padding: 12px 16px;
-      border-radius: 8px;
-      display: none;
-      font-size: 0.95rem;
-    }
-    .message.success {
-      background: #e6f4ea;
-      color: #137333;
-      border: 1px solid #ceead6;
-    }
-    .message.error {
-      background: #fce8e6;
-      color: #c5221f;
-      border: 1px solid #f5c6cb;
-    }
     .section-title {
-      font-size: 1.05rem;
+      font-size: 0.95rem;
       font-weight: 700;
       color: #1a73e8;
-      margin: 24px 0 12px;
-      padding-bottom: 6px;
+      margin: 20px 0 10px;
+      padding-bottom: 5px;
       border-bottom: 2px solid #e8f0fe;
     }
-    .admin-link {
-      text-align: center;
-      margin-top: 20px;
-      font-size: 0.85rem;
+    .message {
+      margin-top: 14px;
+      padding: 11px 14px;
+      border-radius: 8px;
+      display: none;
+      font-size: 0.9rem;
     }
-    .admin-link a {
-      color: #1a73e8;
-      text-decoration: none;
+    .message.success { background: #e6f4ea; color: #137333; display: block; }
+    .message.error { background: #fce8e6; color: #c5221f; display: block; }
+    .shift-badge {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: 600;
     }
+    .shift-1 { background: #e3f2fd; color: #1565c0; }
+    .shift-2 { background: #f3e5f5; color: #7b1fa2; }
   </style>
 </head>
 <body>
   <div class="container">
     <div class="header">
-      <h1>ثبت عملکرد روزانه</h1>
-      <p>سیستم ثبت آمار پردازش و صدور ثالث</p>
+      <h1>سیستم حقوق کارشناسان ثالث</h1>
+      <button class="btn btn-primary" onclick="openForm()">+ ثبت رکورد جدید</button>
     </div>
 
-    <div class="form-body">
-      <form id="recordForm">
-        <!-- انتخاب کارشناس -->
-        <div class="form-group">
-          <label for="expertName">نام کارشناس</label>
-          <select id="expertName" name="expertName" required>
-            <option value="">-- انتخاب کنید --</option>
-          </select>
-        </div>
+    <div class="table-wrapper">
+      <table id="recordsTable">
+        <thead>
+          <tr>
+            <th>شیفت</th>
+            <th>نام کارشناس</th>
+            <th>پردازش اولیه</th>
+            <th>پردازش ثانویه</th>
+            <th>صدور &lt;۱۵</th>
+            <th>صدور ۱۵-۲۰</th>
+            <th>صدور ۲۰-۳۰</th>
+            <th>صدور &gt;۳۰</th>
+            <th>لغو شده</th>
+            <th>مجموع صدور</th>
+            <th>فاصله تا پله بعدی</th>
+            <th>حقوق ثابت</th>
+            <th>حقوق متغیر</th>
+            <th>قبل از جریمه</th>
+            <th>خطای صدور</th>
+            <th>نرخ خطا</th>
+            <th>حقوق نهایی</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody">
+          <tr><td colspan="17" class="empty-state">در حال بارگذاری...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
 
-        <div class="form-group">
-          <label for="shift">شیفت (خودکار)</label>
-          <input type="text" id="shift" name="shift" readonly style="background:#f5f5f5;">
-        </div>
+  <!-- مودال فرم -->
+  <div class="modal-overlay" id="formModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>ثبت رکورد جدید</h2>
+        <button class="close-btn" onclick="closeForm()">×</button>
+      </div>
+      <div class="modal-body">
+        <form id="recordForm">
+          <div class="form-group">
+            <label>نام کارشناس</label>
+            <select id="expertName" name="expertName" required>
+              <option value="">-- انتخاب کنید --</option>
+            </select>
+          </div>
 
-        <div class="section-title">آمار پردازش</div>
-        <div class="grid-2">
           <div class="form-group">
-            <label>تعداد پردازش اولیه ثالث</label>
-            <input type="number" name="primaryProcess" min="0" value="0" required>
+            <label>شیفت</label>
+            <input type="text" id="shiftDisplay" readonly style="background:#f5f5f5;">
+            <input type="hidden" id="shift" name="shift">
           </div>
-          <div class="form-group">
-            <label>تعداد پردازش ثانویه ثالث</label>
-            <input type="number" name="secondaryProcess" min="0" value="0" required>
-          </div>
-        </div>
 
-        <div class="section-title">آمار صدور ثالث</div>
-        <div class="grid-2">
-          <div class="form-group">
-            <label>زیر ۱۵ دقیقه</label>
-            <input type="number" name="under15" min="0" value="0" required>
+          <div class="section-title">آمار پردازش</div>
+          <div class="grid-2">
+            <div class="form-group">
+              <label>تعداد پردازش اولیه ثالث</label>
+              <input type="number" name="primaryProcess" min="0" value="0" required>
+            </div>
+            <div class="form-group">
+              <label>تعداد پردازش ثانویه ثالث</label>
+              <input type="number" name="secondaryProcess" min="0" value="0" required>
+            </div>
           </div>
-          <div class="form-group">
-            <label>۱۵ تا ۲۰ دقیقه</label>
-            <input type="number" name="between15_20" min="0" value="0" required>
-          </div>
-          <div class="form-group">
-            <label>۲۰ تا ۳۰ دقیقه</label>
-            <input type="number" name="between20_30" min="0" value="0" required>
-          </div>
-          <div class="form-group">
-            <label>بالای ۳۰ دقیقه</label>
-            <input type="number" name="over30" min="0" value="0" required>
-          </div>
-        </div>
 
-        <div class="section-title">سایر آمار</div>
-        <div class="grid-2">
-          <div class="form-group">
-            <label>تعداد سفارشات لغو شده</label>
-            <input type="number" name="canceled" min="0" value="0" required>
+          <div class="section-title">آمار صدور ثالث</div>
+          <div class="grid-2">
+            <div class="form-group">
+              <label>زیر ۱۵ دقیقه</label>
+              <input type="number" name="under15" min="0" value="0" required>
+            </div>
+            <div class="form-group">
+              <label>۱۵ تا ۲۰ دقیقه</label>
+              <input type="number" name="between15_20" min="0" value="0" required>
+            </div>
+            <div class="form-group">
+              <label>۲۰ تا ۳۰ دقیقه</label>
+              <input type="number" name="between20_30" min="0" value="0" required>
+            </div>
+            <div class="form-group">
+              <label>بالای ۳۰ دقیقه</label>
+              <input type="number" name="over30" min="0" value="0" required>
+            </div>
           </div>
-          <div class="form-group">
-            <label>تعداد خطای صدور</label>
-            <input type="number" name="errors" min="0" value="0" required>
+
+          <div class="section-title">سایر آمار</div>
+          <div class="grid-2">
+            <div class="form-group">
+              <label>تعداد سفارشات لغو شده</label>
+              <input type="number" name="canceled" min="0" value="0" required>
+            </div>
+            <div class="form-group">
+              <label>تعداد خطای صدور</label>
+              <input type="number" name="errors" min="0" value="0" required>
+            </div>
           </div>
-        </div>
 
-        <button type="submit" class="btn" id="submitBtn">ثبت اطلاعات</button>
-      </form>
-
-      <div id="message" class="message"></div>
-
-      <div class="admin-link">
-        <a href="#" onclick="showAdmin()">مدیریت لیست کارشناسان (ادمین)</a>
+          <button type="submit" class="btn btn-success" id="submitBtn">ثبت اطلاعات</button>
+          <div id="formMessage" class="message"></div>
+        </form>
       </div>
     </div>
   </div>
@@ -198,30 +311,99 @@
   <script>
     let experts = [];
 
-    // بارگذاری لیست کارشناس‌ها
-    function loadExperts() {
-      google.script.run
-        .withSuccessHandler(function(list) {
-          experts = list;
-          const select = document.getElementById("expertName");
-          select.innerHTML = '<option value="">-- انتخاب کنید --</option>';
-          list.forEach(exp => {
-            const opt = document.createElement("option");
-            opt.value = exp.name;
-            opt.textContent = exp.name;
-            select.appendChild(opt);
-          });
-        })
-        .getExperts();
+    function formatNumber(num) {
+      if (num === null || num === undefined || num === "") return "-";
+      return Number(num).toLocaleString("fa-IR");
     }
 
-    // وقتی کارشناس انتخاب شد، شیفتش خودکار پر بشه
+    function formatPercent(rate) {
+      if (rate === null || rate === undefined) return "-";
+      const r = Number(rate);
+      // اگر کمتر از ۱ باشد یعنی اعشاری است
+      return (r <= 1 ? (r * 100) : r).toFixed(2) + "٪";
+    }
+
+    function shiftLabel(s) {
+      return Number(s) === 2 ? "شب" : "روز";
+    }
+
+    function loadExperts() {
+      google.script.run.withSuccessHandler(function(list) {
+        experts = list;
+        const select = document.getElementById("expertName");
+        select.innerHTML = '<option value="">-- انتخاب کنید --</option>';
+        list.forEach(exp => {
+          const opt = document.createElement("option");
+          opt.value = exp.name;
+          opt.textContent = exp.name + " (" + shiftLabel(exp.shift) + ")";
+          select.appendChild(opt);
+        });
+      }).getExperts();
+    }
+
+    function loadRecords() {
+      google.script.run.withSuccessHandler(function(records) {
+        const tbody = document.getElementById("tableBody");
+        if (!records || records.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="17" class="empty-state">هنوز رکوردی ثبت نشده است.</td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = records.map(row => {
+          // row[0]=شیفت, 1=نام, ... 16=حقوق نهایی
+          const shift = row[0];
+          return `
+            <tr>
+              <td><span class="shift-badge shift-${shift}">${shiftLabel(shift)}</span></td>
+              <td>${row[1] || ""}</td>
+              <td class="number">${formatNumber(row[2])}</td>
+              <td class="number">${formatNumber(row[3])}</td>
+              <td class="number">${formatNumber(row[4])}</td>
+              <td class="number">${formatNumber(row[5])}</td>
+              <td class="number">${formatNumber(row[6])}</td>
+              <td class="number">${formatNumber(row[7])}</td>
+              <td class="number">${formatNumber(row[8])}</td>
+              <td class="number"><strong>${formatNumber(row[9])}</strong></td>
+              <td>${row[10] || ""}</td>
+              <td class="number salary">${formatNumber(row[11])}</td>
+              <td class="number salary">${formatNumber(row[12])}</td>
+              <td class="number">${formatNumber(row[13])}</td>
+              <td class="number">${formatNumber(row[14])}</td>
+              <td class="number">${formatPercent(row[15])}</td>
+              <td class="number salary"><strong>${formatNumber(row[16])}</strong></td>
+            </tr>
+          `;
+        }).join("");
+      }).getRecords(150);
+    }
+
     document.getElementById("expertName").addEventListener("change", function() {
       const selected = experts.find(e => e.name === this.value);
-      document.getElementById("shift").value = selected ? selected.shift : "";
+      if (selected) {
+        document.getElementById("shift").value = selected.shift;
+        document.getElementById("shiftDisplay").value = shiftLabel(selected.shift);
+      } else {
+        document.getElementById("shift").value = "";
+        document.getElementById("shiftDisplay").value = "";
+      }
     });
 
-    // ارسال فرم
+    function openForm() {
+      document.getElementById("formModal").classList.add("active");
+      document.getElementById("formMessage").style.display = "none";
+      document.getElementById("recordForm").reset();
+      document.getElementById("shiftDisplay").value = "";
+    }
+
+    function closeForm() {
+      document.getElementById("formModal").classList.remove("active");
+    }
+
+    // بستن با کلیک بیرون
+    document.getElementById("formModal").addEventListener("click", function(e) {
+      if (e.target === this) closeForm();
+    });
+
     document.getElementById("recordForm").addEventListener("submit", function(e) {
       e.preventDefault();
       const btn = document.getElementById("submitBtn");
@@ -243,13 +425,15 @@
 
       google.script.run
         .withSuccessHandler(function(res) {
-          const msg = document.getElementById("message");
+          const msg = document.getElementById("formMessage");
           msg.style.display = "block";
           if (res.success) {
             msg.className = "message success";
             msg.textContent = res.message;
-            document.getElementById("recordForm").reset();
-            document.getElementById("shift").value = "";
+            setTimeout(() => {
+              closeForm();
+              loadRecords();
+            }, 900);
           } else {
             msg.className = "message error";
             msg.textContent = res.message;
@@ -258,7 +442,7 @@
           btn.textContent = "ثبت اطلاعات";
         })
         .withFailureHandler(function(err) {
-          const msg = document.getElementById("message");
+          const msg = document.getElementById("formMessage");
           msg.style.display = "block";
           msg.className = "message error";
           msg.textContent = "خطای ارتباط: " + err.message;
@@ -268,13 +452,9 @@
         .submitRecord(formData);
     });
 
-    // ادمین ساده (فعلاً فقط هشدار)
-    function showAdmin() {
-      alert("برای مدیریت لیست کارشناسان، مستقیم به شیت «Experts» در گوگل شیت بروید و نام و شیفت را اضافه یا ویرایش کنید.\n\nبعداً می‌توانیم صفحه ادمین جداگانه بسازیم.");
-    }
-
     // شروع
     loadExperts();
+    loadRecords();
   </script>
 </body>
 </html>
