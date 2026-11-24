@@ -57,7 +57,6 @@
     }
     .btn-filter:hover { background: #2d8e47; }
 
-    /* فیلتر ماه */
     .filter-bar {
       background: white;
       border-radius: 10px;
@@ -76,7 +75,7 @@
       border-radius: 7px;
       font-family: inherit;
       font-size: 0.9rem;
-      min-width: 110px;
+      min-width: 140px;
     }
 
     .table-wrapper {
@@ -124,7 +123,6 @@
     .shift-1 { background: #e3f2fd; color: #1565c0; }
     .shift-2 { background: #f3e5f5; color: #7b1fa2; }
 
-    /* مودال */
     .modal-overlay {
       display: none;
       position: fixed;
@@ -214,13 +212,10 @@
       <button class="btn btn-primary" onclick="openForm()">+ ثبت رکورد جدید</button>
     </div>
 
-    <!-- فیلتر ماه شمسی -->
     <div class="filter-bar">
       <label>نمایش ماه:</label>
-      <select id="filterYear"></select>
-      <select id="filterMonth"></select>
-      <button class="btn btn-filter" onclick="applyFilter()">نمایش</button>
-      <span id="currentFilterLabel" style="margin-right:auto; color:#555; font-size:0.9rem;"></span>
+      <select id="filterPeriod" onchange="applyFilter()"></select>
+      <span id="recordCount" style="margin-right:auto; color:#666; font-size:0.9rem;"></span>
     </div>
 
     <div class="table-wrapper">
@@ -347,6 +342,7 @@
     let experts = [];
     let currentYear = 1403;
     let currentMonth = 1;
+    let availablePeriods = [];
 
     function formatNumber(num) {
       if (num === null || num === undefined || num === "") return "-";
@@ -371,17 +367,16 @@
       return (PERSIAN_MONTHS[m - 1] || "") + " " + parts[0];
     }
 
-    // پر کردن دراپ‌داون‌های سال و ماه
-    function fillYearMonthSelects(yearSelectId, monthSelectId, selectedYear, selectedMonth) {
-      const yearSel = document.getElementById(yearSelectId);
-      const monthSel = document.getElementById(monthSelectId);
+    function fillFormYearMonth() {
+      const yearSel = document.getElementById("formYear");
+      const monthSel = document.getElementById("formMonth");
 
       yearSel.innerHTML = "";
-      for (let y = currentYear; y >= currentYear - 3; y--) {
+      for (let y = currentYear + 1; y >= currentYear - 2; y--) {
         const opt = document.createElement("option");
         opt.value = y;
         opt.textContent = y;
-        if (y === selectedYear) opt.selected = true;
+        if (y === currentYear) opt.selected = true;
         yearSel.appendChild(opt);
       }
 
@@ -390,27 +385,38 @@
         const opt = document.createElement("option");
         opt.value = idx + 1;
         opt.textContent = name;
-        if (idx + 1 === selectedMonth) opt.selected = true;
+        if (idx + 1 === currentMonth) opt.selected = true;
         monthSel.appendChild(opt);
       });
     }
 
-    function loadInitialData() {
+    function loadAvailablePeriods() {
       google.script.run
-        .withSuccessHandler(function(info) {
-          currentYear = info.year;
-          currentMonth = info.month;
+        .withSuccessHandler(function(periods) {
+          availablePeriods = periods || [];
+          const select = document.getElementById("filterPeriod");
+          select.innerHTML = "";
 
-          // فیلتر صفحه اصلی
-          fillYearMonthSelects("filterYear", "filterMonth", currentYear, currentMonth);
-          document.getElementById("currentFilterLabel").textContent = "در حال نمایش: " + info.label;
+          if (availablePeriods.length === 0) {
+            select.innerHTML = '<option value="">هیچ داده‌ای وجود ندارد</option>';
+            document.getElementById("tableBody").innerHTML =
+              '<tr><td colspan="17" class="empty-state">هنوز هیچ رکوردی ثبت نشده است.</td></tr>';
+            document.getElementById("recordCount").textContent = "";
+            return;
+          }
 
-          // فرم ثبت
-          fillYearMonthSelects("formYear", "formMonth", currentYear, currentMonth);
+          availablePeriods.forEach((p, idx) => {
+            const opt = document.createElement("option");
+            opt.value = p.key;
+            opt.textContent = p.label;
+            if (idx === 0) opt.selected = true;
+            select.appendChild(opt);
+          });
 
-          loadRecords(currentYear, currentMonth);
+          // بارگذاری اولین (جدیدترین) ماه
+          applyFilter();
         })
-        .getCurrentMonthInfo();
+        .getAvailablePeriods();
     }
 
     function loadExperts() {
@@ -433,10 +439,15 @@
       google.script.run
         .withSuccessHandler(function(records) {
           const tbody = document.getElementById("tableBody");
+          const countEl = document.getElementById("recordCount");
+
           if (!records || records.length === 0) {
             tbody.innerHTML = '<tr><td colspan="17" class="empty-state">هیچ رکوردی برای این ماه یافت نشد.</td></tr>';
+            countEl.textContent = "۰ رکورد";
             return;
           }
+
+          countEl.textContent = records.length.toLocaleString("fa-IR") + " رکورد";
 
           tbody.innerHTML = records.map(row => `
             <tr>
@@ -468,10 +479,9 @@
     }
 
     function applyFilter() {
-      const year = Number(document.getElementById("filterYear").value);
-      const month = Number(document.getElementById("filterMonth").value);
-      const label = PERSIAN_MONTHS[month - 1] + " " + year;
-      document.getElementById("currentFilterLabel").textContent = "در حال نمایش: " + label;
+      const key = document.getElementById("filterPeriod").value;
+      if (!key) return;
+      const [year, month] = key.split("/").map(Number);
       loadRecords(year, month);
     }
 
@@ -492,8 +502,7 @@
       document.getElementById("recordForm").reset();
       document.getElementById("shiftDisplay").value = "";
       document.getElementById("shift").value = "";
-      // ماه پیش‌فرض را دوباره تنظیم کن
-      fillYearMonthSelects("formYear", "formMonth", currentYear, currentMonth);
+      fillFormYearMonth();
     }
 
     function closeForm() {
@@ -534,8 +543,8 @@
             msg.textContent = res.message;
             setTimeout(() => {
               closeForm();
-              // بعد از ثبت، همان ماه انتخاب‌شده در فیلتر را رفرش کن
-              applyFilter();
+              // بعد از ثبت، لیست ماه‌های موجود را دوباره لود کن
+              loadAvailablePeriods();
             }, 800);
           } else {
             msg.className = "message error";
@@ -556,8 +565,14 @@
     });
 
     // شروع
-    loadExperts();
-    loadInitialData();
+    google.script.run
+      .withSuccessHandler(function(info) {
+        currentYear = info.year;
+        currentMonth = info.month;
+        loadExperts();
+        loadAvailablePeriods();
+      })
+      .getCurrentJalaliInfo();
   </script>
 </body>
 </html>

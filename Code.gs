@@ -78,7 +78,6 @@ function setupSheets() {
     sheet.appendRow([...COLUMNS, "تاریخ ثبت"]);
   } else {
     const header = sheet.getRange(1, 1, 1, Math.max(sheet.getLastColumn(), 1)).getValues()[0];
-    // اگر ساختار قدیمی است، هدر را بازنویسی کن (داده‌های تست قبلی پاک می‌شود)
     if (header[2] !== "ماه عملکرد") {
       sheet.clear();
       sheet.appendRow([...COLUMNS, "تاریخ ثبت"]);
@@ -227,23 +226,49 @@ function getExperts() {
   return list;
 }
 
-function getCurrentMonthInfo() {
+function getCurrentJalaliInfo() {
   const [jy, jm] = getCurrentJalali();
-  return {
-    year: jy,
-    month: jm,
-    monthName: PERSIAN_MONTHS[jm - 1],
-    label: PERSIAN_MONTHS[jm - 1] + " " + jy
-  };
+  return { year: jy, month: jm };
 }
 
-function getAvailableYears() {
-  const [currentYear] = getCurrentJalali();
-  const years = [];
-  for (let y = currentYear; y >= currentYear - 3; y--) {
-    years.push(y);
-  }
-  return years;
+/**
+ * لیست ماه‌هایی که واقعاً داده دارند را برمی‌گرداند
+ * مرتب‌شده از جدید به قدیم
+ */
+function getAvailablePeriods() {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(RECORDS_SHEET);
+  const lastRow = sheet.getLastRow();
+  if (lastRow <= 1) return [];
+
+  const data = sheet.getRange(2, 1, lastRow, 3).getValues(); // فقط ستون ماه عملکرد
+  const unique = {};
+
+  data.forEach(row => {
+    const val = String(row[2] || "").trim();
+    if (val && val.includes("/")) {
+      unique[val] = true;
+    }
+  });
+
+  const periods = Object.keys(unique).map(key => {
+    const [y, m] = key.split("/");
+    const year = Number(y);
+    const month = Number(m);
+    return {
+      year: year,
+      month: month,
+      key: key,
+      label: (PERSIAN_MONTHS[month - 1] || "") + " " + year
+    };
+  });
+
+  // مرتب‌سازی نزولی (جدیدترین اول)
+  periods.sort((a, b) => {
+    if (a.year !== b.year) return b.year - a.year;
+    return b.month - a.month;
+  });
+
+  return periods;
 }
 
 function getRecords(year, month) {
@@ -251,11 +276,11 @@ function getRecords(year, month) {
   const lastRow = sheet.getLastRow();
   if (lastRow <= 1) return [];
 
-  const data = sheet.getRange(2, 1, lastRow - 1, 18).getValues(); // ۱۷ ستون داده + تاریخ
+  // اصلاح مهم: از ردیف ۲ تا lastRow
+  const data = sheet.getRange(2, 1, lastRow, 18).getValues();
   const target = year + "/" + String(month).padStart(2, "0");
 
-  // فیلتر بر اساس ماه عملکرد
-  let filtered = data.filter(row => String(row[2]) === target);
+  let filtered = data.filter(row => String(row[2] || "").trim() === target);
 
   // جدیدترین‌ها اول
   filtered = filtered.reverse();
@@ -300,7 +325,7 @@ function submitRecord(formData) {
     const row = [
       shift,
       formData.expertName,
-      monthLabel,           // ماه عملکرد
+      monthLabel,
       primary,
       secondary,
       under15,
