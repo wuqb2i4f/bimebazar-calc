@@ -8,6 +8,7 @@ const ERROR_PENALTIES_SHEET = "Config_ErrorPenalties";
 const COLUMNS = [
   "شیفت",
   "نام کارشناس",
+  "ماه عملکرد",
   "تعداد پردازش اولیه ثالث",
   "تعداد پردازش ثانویه ثالث",
   "تعداد صدور ثالث زیر 15 دقیقه",
@@ -24,11 +25,42 @@ const COLUMNS = [
   "حقوق بعد از جریمه خطای صدور"
 ];
 
+const PERSIAN_MONTHS = [
+  "فروردین", "اردیبهشت", "خرداد", "تیر", "مرداد", "شهریور",
+  "مهر", "آبان", "آذر", "دی", "بهمن", "اسفند"
+];
+
+// ====================== تبدیل تاریخ میلادی به شمسی ======================
+function gregorianToJalali(gy, gm, gd) {
+  var g_d_m = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334];
+  var jy = (gy <= 1600) ? 0 : 979;
+  gy -= (gy <= 1600) ? 621 : 1600;
+  var gy2 = (gm > 2) ? (gy + 1) : gy;
+  var days = (365 * gy) + Math.floor((gy2 + 3) / 4) - Math.floor((gy2 + 99) / 100) +
+             Math.floor((gy2 + 399) / 400) - 80 + gd + g_d_m[gm - 1];
+  jy += 33 * Math.floor(days / 12053);
+  days %= 12053;
+  jy += 4 * Math.floor(days / 1461);
+  days %= 1461;
+  if (days > 365) {
+    jy += Math.floor((days - 1) / 365);
+    days = (days - 1) % 365;
+  }
+  var jm = (days < 186) ? 1 + Math.floor(days / 31) : 7 + Math.floor((days - 186) / 30);
+  var jd = 1 + ((days < 186) ? (days % 31) : ((days - 186) % 30));
+  return [jy, jm, jd];
+}
+
+function getCurrentJalali() {
+  const now = new Date();
+  return gregorianToJalali(now.getFullYear(), now.getMonth() + 1, now.getDate());
+}
+
 // ====================== راه‌اندازی شیت‌ها ======================
 function setupSheets() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
 
-  // --- Experts ---
+  // Experts
   let sheet = ss.getSheetByName(EXPERTS_SHEET);
   if (!sheet) {
     sheet = ss.insertSheet(EXPERTS_SHEET);
@@ -39,21 +71,21 @@ function setupSheets() {
     sheet.appendRow(["سارا کریمی", 2]);
   }
 
-  // --- Records ---
+  // Records
   sheet = ss.getSheetByName(RECORDS_SHEET);
   if (!sheet) {
     sheet = ss.insertSheet(RECORDS_SHEET);
     sheet.appendRow([...COLUMNS, "تاریخ ثبت"]);
   } else {
-    // اگر هدر قدیمی است، آن را به‌روز می‌کنیم (فقط اگر خالی باشد)
-    const header = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
-    if (header[0] !== "شیفت" || header.length < 16) {
+    const header = sheet.getRange(1, 1, 1, Math.max(sheet.getLastColumn(), 1)).getValues()[0];
+    // اگر ساختار قدیمی است، هدر را بازنویسی کن (داده‌های تست قبلی پاک می‌شود)
+    if (header[2] !== "ماه عملکرد") {
       sheet.clear();
       sheet.appendRow([...COLUMNS, "تاریخ ثبت"]);
     }
   }
 
-  // --- Config_FixedSalary ---
+  // Config_FixedSalary
   sheet = ss.getSheetByName(FIXED_SALARY_SHEET);
   if (!sheet) {
     sheet = ss.insertSheet(FIXED_SALARY_SHEET);
@@ -70,7 +102,7 @@ function setupSheets() {
     sheet.appendRow([2, 700, 999999, 18000000]);
   }
 
-  // --- Config_PieceRates ---
+  // Config_PieceRates
   sheet = ss.getSheetByName(PIECE_RATES_SHEET);
   if (!sheet) {
     sheet = ss.insertSheet(PIECE_RATES_SHEET);
@@ -84,7 +116,7 @@ function setupSheets() {
     sheet.appendRow(["issue_cancelled", "سفارشات لغو شده", 7500]);
   }
 
-  // --- Config_ErrorPenalties ---
+  // Config_ErrorPenalties
   sheet = ss.getSheetByName(ERROR_PENALTIES_SHEET);
   if (!sheet) {
     sheet = ss.insertSheet(ERROR_PENALTIES_SHEET);
@@ -101,7 +133,6 @@ function getFixedSalaryRules() {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(FIXED_SALARY_SHEET);
   const data = sheet.getDataRange().getValues();
   const rules = { 1: [], 2: [] };
-
   for (let i = 1; i < data.length; i++) {
     const shift = Number(data[i][0]);
     const low = Number(data[i][1]);
@@ -121,9 +152,7 @@ function getPieceRates() {
   const data = sheet.getDataRange().getValues();
   const rates = {};
   for (let i = 1; i < data.length; i++) {
-    if (data[i][0]) {
-      rates[data[i][0]] = Number(data[i][2]) || 0;
-    }
+    if (data[i][0]) rates[data[i][0]] = Number(data[i][2]) || 0;
   }
   return rates;
 }
@@ -133,10 +162,7 @@ function getErrorPenalties() {
   const data = sheet.getDataRange().getValues();
   const penalties = [];
   for (let i = 1; i < data.length; i++) {
-    penalties.push({
-      threshold: Number(data[i][0]),
-      penalty: Number(data[i][1])
-    });
+    penalties.push({ threshold: Number(data[i][0]), penalty: Number(data[i][1]) });
   }
   penalties.sort((a, b) => a.threshold - b.threshold);
   return penalties;
@@ -151,9 +177,7 @@ function calculateFullIssuance(primary, secondary, under15, b15_20, b20_30, over
 function calculateFixedSalary(shift, totalIssuance, rules) {
   const shiftRules = rules[shift] || [];
   for (const r of shiftRules) {
-    if (totalIssuance >= r.low && totalIssuance <= r.high) {
-      return r.amount;
-    }
+    if (totalIssuance >= r.low && totalIssuance <= r.high) return r.amount;
   }
   return 0;
 }
@@ -173,7 +197,6 @@ function calculateVariableSalary(primary, secondary, under15, b15_20, b20_30, ov
 function applyErrorPenalty(salaryBefore, errorRate, penalties) {
   let rate = Number(errorRate);
   if (rate > 1) rate = rate / 100;
-
   let penaltyPct = 0.20;
   for (const p of penalties) {
     if (rate <= p.threshold) {
@@ -198,31 +221,48 @@ function getExperts() {
   const list = [];
   for (let i = 1; i < data.length; i++) {
     if (data[i][0]) {
-      list.push({
-        name: String(data[i][0]),
-        shift: Number(data[i][1]) || 1
-      });
+      list.push({ name: String(data[i][0]), shift: Number(data[i][1]) || 1 });
     }
   }
   return list;
 }
 
-function getRecords(limit) {
-  limit = limit || 200;
+function getCurrentMonthInfo() {
+  const [jy, jm] = getCurrentJalali();
+  return {
+    year: jy,
+    month: jm,
+    monthName: PERSIAN_MONTHS[jm - 1],
+    label: PERSIAN_MONTHS[jm - 1] + " " + jy
+  };
+}
+
+function getAvailableYears() {
+  const [currentYear] = getCurrentJalali();
+  const years = [];
+  for (let y = currentYear; y >= currentYear - 3; y--) {
+    years.push(y);
+  }
+  return years;
+}
+
+function getRecords(year, month) {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(RECORDS_SHEET);
   const lastRow = sheet.getLastRow();
-  
   if (lastRow <= 1) return [];
 
-  const data = sheet.getRange(2, 1, lastRow - 1, 17).getValues(); // ۱۶ ستون داده + تاریخ
-  
+  const data = sheet.getRange(2, 1, lastRow - 1, 18).getValues(); // ۱۷ ستون داده + تاریخ
+  const target = year + "/" + String(month).padStart(2, "0");
+
+  // فیلتر بر اساس ماه عملکرد
+  let filtered = data.filter(row => String(row[2]) === target);
+
   // جدیدترین‌ها اول
-  const records = data.reverse().slice(0, limit);
-  
-  // تبدیل تاریخ به رشته خوانا و اطمینان از عدد بودن مقادیر
-  return records.map(row => {
+  filtered = filtered.reverse();
+
+  return filtered.map(row => {
     return row.map((cell, idx) => {
-      if (idx === 16 && cell instanceof Date) {
+      if (idx === 17 && cell instanceof Date) {
         return Utilities.formatDate(cell, Session.getScriptTimeZone(), "yyyy/MM/dd HH:mm");
       }
       return cell;
@@ -246,6 +286,10 @@ function submitRecord(formData) {
     const errors = Number(formData.errors) || 0;
     const shift = Number(formData.shift) || 1;
 
+    const year = Number(formData.year);
+    const month = Number(formData.month);
+    const monthLabel = year + "/" + String(month).padStart(2, "0");
+
     const totalIssuance = calculateFullIssuance(primary, secondary, under15, b15_20, b20_30, over30);
     const fixedSalary = calculateFixedSalary(shift, totalIssuance, rules);
     const variableSalary = calculateVariableSalary(primary, secondary, under15, b15_20, b20_30, over30, canceled, rates);
@@ -256,6 +300,7 @@ function submitRecord(formData) {
     const row = [
       shift,
       formData.expertName,
+      monthLabel,           // ماه عملکرد
       primary,
       secondary,
       under15,

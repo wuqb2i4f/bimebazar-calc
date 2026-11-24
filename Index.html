@@ -15,25 +15,25 @@
       color: #222;
       font-size: 14px;
     }
-    .container { max-width: 1400px; margin: 0 auto; }
+    .container { max-width: 1450px; margin: 0 auto; }
     .header {
       background: linear-gradient(135deg, #1a73e8, #0d47a1);
       color: white;
-      padding: 18px 22px;
+      padding: 16px 20px;
       border-radius: 12px;
-      margin-bottom: 18px;
+      margin-bottom: 16px;
       display: flex;
       justify-content: space-between;
       align-items: center;
       flex-wrap: wrap;
       gap: 12px;
     }
-    .header h1 { font-size: 1.35rem; }
+    .header h1 { font-size: 1.3rem; }
     .btn {
-      padding: 10px 18px;
+      padding: 9px 16px;
       border: none;
       border-radius: 8px;
-      font-size: 0.95rem;
+      font-size: 0.92rem;
       font-weight: 600;
       cursor: pointer;
       font-family: inherit;
@@ -50,25 +50,53 @@
     }
     .btn-success:hover { background: #1557b0; }
     .btn-success:disabled { background: #90caf9; cursor: not-allowed; }
+    .btn-filter {
+      background: #34a853;
+      color: white;
+      padding: 8px 14px;
+    }
+    .btn-filter:hover { background: #2d8e47; }
+
+    /* فیلتر ماه */
+    .filter-bar {
+      background: white;
+      border-radius: 10px;
+      padding: 12px 16px;
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      box-shadow: 0 1px 6px rgba(0,0,0,0.05);
+    }
+    .filter-bar label { font-weight: 600; color: #444; }
+    .filter-bar select {
+      padding: 7px 12px;
+      border: 1px solid #ddd;
+      border-radius: 7px;
+      font-family: inherit;
+      font-size: 0.9rem;
+      min-width: 110px;
+    }
 
     .table-wrapper {
       background: white;
       border-radius: 12px;
       box-shadow: 0 2px 12px rgba(0,0,0,0.06);
       overflow: auto;
-      max-height: 78vh;
+      max-height: 72vh;
     }
     table {
       width: 100%;
       border-collapse: collapse;
-      min-width: 1200px;
+      min-width: 1300px;
     }
     th, td {
-      padding: 11px 10px;
+      padding: 10px 9px;
       text-align: center;
       border-bottom: 1px solid #eee;
       white-space: nowrap;
-      font-size: 0.88rem;
+      font-size: 0.86rem;
     }
     th {
       background: #f1f3f4;
@@ -88,9 +116,9 @@
     }
     .shift-badge {
       display: inline-block;
-      padding: 3px 11px;
+      padding: 3px 10px;
       border-radius: 20px;
-      font-size: 0.8rem;
+      font-size: 0.78rem;
       font-weight: 600;
     }
     .shift-1 { background: #e3f2fd; color: #1565c0; }
@@ -186,12 +214,22 @@
       <button class="btn btn-primary" onclick="openForm()">+ ثبت رکورد جدید</button>
     </div>
 
+    <!-- فیلتر ماه شمسی -->
+    <div class="filter-bar">
+      <label>نمایش ماه:</label>
+      <select id="filterYear"></select>
+      <select id="filterMonth"></select>
+      <button class="btn btn-filter" onclick="applyFilter()">نمایش</button>
+      <span id="currentFilterLabel" style="margin-right:auto; color:#555; font-size:0.9rem;"></span>
+    </div>
+
     <div class="table-wrapper">
       <table>
         <thead>
           <tr>
             <th>شیفت</th>
             <th>نام کارشناس</th>
+            <th>ماه عملکرد</th>
             <th>پردازش اولیه</th>
             <th>پردازش ثانویه</th>
             <th>صدور &lt;۱۵</th>
@@ -209,7 +247,7 @@
           </tr>
         </thead>
         <tbody id="tableBody">
-          <tr><td colspan="16" class="empty-state">در حال بارگذاری...</td></tr>
+          <tr><td colspan="17" class="empty-state">در حال بارگذاری...</td></tr>
         </tbody>
       </table>
     </div>
@@ -235,6 +273,18 @@
             <label>شیفت</label>
             <input type="text" id="shiftDisplay" readonly style="background:#f5f5f5;">
             <input type="hidden" id="shift" name="shift">
+          </div>
+
+          <div class="section-title">ماه عملکرد</div>
+          <div class="grid-2">
+            <div class="form-group">
+              <label>سال</label>
+              <select id="formYear" name="year" required></select>
+            </div>
+            <div class="form-group">
+              <label>ماه</label>
+              <select id="formMonth" name="month" required></select>
+            </div>
           </div>
 
           <div class="section-title">آمار پردازش</div>
@@ -289,7 +339,14 @@
   </div>
 
   <script>
+    const PERSIAN_MONTHS = [
+      "فروردین", "اردیبهشت", "خرداد", "تیر", "مرداد", "شهریور",
+      "مهر", "آبان", "آذر", "دی", "بهمن", "اسفند"
+    ];
+
     let experts = [];
+    let currentYear = 1403;
+    let currentMonth = 1;
 
     function formatNumber(num) {
       if (num === null || num === undefined || num === "") return "-";
@@ -306,6 +363,56 @@
       return Number(s) === 2 ? "شب" : "روز";
     }
 
+    function monthLabel(ym) {
+      if (!ym) return "-";
+      const parts = String(ym).split("/");
+      if (parts.length !== 2) return ym;
+      const m = parseInt(parts[1], 10);
+      return (PERSIAN_MONTHS[m - 1] || "") + " " + parts[0];
+    }
+
+    // پر کردن دراپ‌داون‌های سال و ماه
+    function fillYearMonthSelects(yearSelectId, monthSelectId, selectedYear, selectedMonth) {
+      const yearSel = document.getElementById(yearSelectId);
+      const monthSel = document.getElementById(monthSelectId);
+
+      yearSel.innerHTML = "";
+      for (let y = currentYear; y >= currentYear - 3; y--) {
+        const opt = document.createElement("option");
+        opt.value = y;
+        opt.textContent = y;
+        if (y === selectedYear) opt.selected = true;
+        yearSel.appendChild(opt);
+      }
+
+      monthSel.innerHTML = "";
+      PERSIAN_MONTHS.forEach((name, idx) => {
+        const opt = document.createElement("option");
+        opt.value = idx + 1;
+        opt.textContent = name;
+        if (idx + 1 === selectedMonth) opt.selected = true;
+        monthSel.appendChild(opt);
+      });
+    }
+
+    function loadInitialData() {
+      google.script.run
+        .withSuccessHandler(function(info) {
+          currentYear = info.year;
+          currentMonth = info.month;
+
+          // فیلتر صفحه اصلی
+          fillYearMonthSelects("filterYear", "filterMonth", currentYear, currentMonth);
+          document.getElementById("currentFilterLabel").textContent = "در حال نمایش: " + info.label;
+
+          // فرم ثبت
+          fillYearMonthSelects("formYear", "formMonth", currentYear, currentMonth);
+
+          loadRecords(currentYear, currentMonth);
+        })
+        .getCurrentMonthInfo();
+    }
+
     function loadExperts() {
       google.script.run
         .withSuccessHandler(function(list) {
@@ -319,50 +426,53 @@
             select.appendChild(opt);
           });
         })
-        .withFailureHandler(function(err) {
-          console.error("خطا در بارگذاری کارشناسان:", err);
-        })
         .getExperts();
     }
 
-    function loadRecords() {
+    function loadRecords(year, month) {
       google.script.run
         .withSuccessHandler(function(records) {
           const tbody = document.getElementById("tableBody");
-          
           if (!records || records.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="16" class="empty-state">هنوز رکوردی ثبت نشده است.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="17" class="empty-state">هیچ رکوردی برای این ماه یافت نشد.</td></tr>';
             return;
           }
 
-          tbody.innerHTML = records.map(row => {
-            return `
-              <tr>
-                <td><span class="shift-badge shift-${row[0]}">${shiftLabel(row[0])}</span></td>
-                <td>${row[1] || ""}</td>
-                <td class="number">${formatNumber(row[2])}</td>
-                <td class="number">${formatNumber(row[3])}</td>
-                <td class="number">${formatNumber(row[4])}</td>
-                <td class="number">${formatNumber(row[5])}</td>
-                <td class="number">${formatNumber(row[6])}</td>
-                <td class="number">${formatNumber(row[7])}</td>
-                <td class="number">${formatNumber(row[8])}</td>
-                <td class="number"><strong>${formatNumber(row[9])}</strong></td>
-                <td class="number salary">${formatNumber(row[10])}</td>
-                <td class="number salary">${formatNumber(row[11])}</td>
-                <td class="number">${formatNumber(row[12])}</td>
-                <td class="number">${formatNumber(row[13])}</td>
-                <td class="number">${formatPercent(row[14])}</td>
-                <td class="number salary"><strong>${formatNumber(row[15])}</strong></td>
-              </tr>
-            `;
-          }).join("");
+          tbody.innerHTML = records.map(row => `
+            <tr>
+              <td><span class="shift-badge shift-${row[0]}">${shiftLabel(row[0])}</span></td>
+              <td>${row[1] || ""}</td>
+              <td>${monthLabel(row[2])}</td>
+              <td class="number">${formatNumber(row[3])}</td>
+              <td class="number">${formatNumber(row[4])}</td>
+              <td class="number">${formatNumber(row[5])}</td>
+              <td class="number">${formatNumber(row[6])}</td>
+              <td class="number">${formatNumber(row[7])}</td>
+              <td class="number">${formatNumber(row[8])}</td>
+              <td class="number">${formatNumber(row[9])}</td>
+              <td class="number"><strong>${formatNumber(row[10])}</strong></td>
+              <td class="number salary">${formatNumber(row[11])}</td>
+              <td class="number salary">${formatNumber(row[12])}</td>
+              <td class="number">${formatNumber(row[13])}</td>
+              <td class="number">${formatNumber(row[14])}</td>
+              <td class="number">${formatPercent(row[15])}</td>
+              <td class="number salary"><strong>${formatNumber(row[16])}</strong></td>
+            </tr>
+          `).join("");
         })
         .withFailureHandler(function(err) {
-          document.getElementById("tableBody").innerHTML = 
-            '<tr><td colspan="16" class="empty-state" style="color:#c5221f;">خطا در بارگذاری جدول: ' + err.message + '</td></tr>';
+          document.getElementById("tableBody").innerHTML =
+            '<tr><td colspan="17" class="empty-state" style="color:#c5221f;">خطا: ' + err.message + '</td></tr>';
         })
-        .getRecords(200);
+        .getRecords(year, month);
+    }
+
+    function applyFilter() {
+      const year = Number(document.getElementById("filterYear").value);
+      const month = Number(document.getElementById("filterMonth").value);
+      const label = PERSIAN_MONTHS[month - 1] + " " + year;
+      document.getElementById("currentFilterLabel").textContent = "در حال نمایش: " + label;
+      loadRecords(year, month);
     }
 
     document.getElementById("expertName").addEventListener("change", function() {
@@ -382,6 +492,8 @@
       document.getElementById("recordForm").reset();
       document.getElementById("shiftDisplay").value = "";
       document.getElementById("shift").value = "";
+      // ماه پیش‌فرض را دوباره تنظیم کن
+      fillYearMonthSelects("formYear", "formMonth", currentYear, currentMonth);
     }
 
     function closeForm() {
@@ -401,6 +513,8 @@
       const formData = {
         expertName: this.expertName.value,
         shift: this.shift.value,
+        year: this.year.value,
+        month: this.month.value,
         primaryProcess: this.primaryProcess.value,
         secondaryProcess: this.secondaryProcess.value,
         under15: this.under15.value,
@@ -420,7 +534,8 @@
             msg.textContent = res.message;
             setTimeout(() => {
               closeForm();
-              loadRecords();
+              // بعد از ثبت، همان ماه انتخاب‌شده در فیلتر را رفرش کن
+              applyFilter();
             }, 800);
           } else {
             msg.className = "message error";
@@ -442,7 +557,7 @@
 
     // شروع
     loadExperts();
-    loadRecords();
+    loadInitialData();
   </script>
 </body>
 </html>
